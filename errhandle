@@ -1,0 +1,7 @@
+on error GoTo errhandle
+chDrive "A"
+Exit Sub
+errhandle:
+  MsgBox "程序发生错误，请通知技术支持人员." & vbCrLf $ "错误编号:" & _
+    Err.Number & "," & Err.Description, vbInformation,"错误提示"
+  Err.Clear
