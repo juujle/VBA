@@ -1,0 +1,14 @@
+
+Private Sub Workbook_BeforeClose(Cancel As Boolean)
+Call lydone.CloseConn
+Me.Saved = True
+End Sub
+
+Private Sub Workbook_BeforeSave(ByVal SaveAsUI As Boolean, Cancel As Boolean)
+Cancel = True '禁止保存修改
+End Sub
+
+Private Sub Workbook_Open()
+    'Sheet1.DTPoldmen.Value = Date
+End Sub
+
