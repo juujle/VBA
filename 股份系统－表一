@@ -1,0 +1,94 @@
+Option Explicit
+Dim strSheBie$
+
+Private Sub cbBFP()   '不分配名单
+  'Call lydone.取消保护(Sheet2)
+  Call lydone.不分配名单(lbSheBie.Value)
+  'Call lydone.保护工作表(Sheet2)
+End Sub
+
+Private Sub FindName()  '查找社员
+  Dim strName As String
+  
+  strName = tbName.Value
+  If Len(strName) = 0 Then
+    MsgBox "请输入要查找的姓名."
+  Else
+    strSheBie = lbSheBie.Value
+    'Call lydone.取消保护(Sheet2)
+    Call lydone.查找社员(strSheBie, strName)
+    'Call lydone.保护工作表(Sheet2)
+  End If
+End Sub
+
+Private Sub ADFind()  '高级查找
+  Dim strFind As String
+  
+  strFind = tbFind.Value
+  If Len(strFind) = 0 Then
+    MsgBox "请输入查找语句."
+  Else
+    strSheBie = lbSheBie.Value
+    'Call lydone.取消保护(Sheet2)
+    Call lydone.高级查找(strSheBie, strFind)
+    'Call lydone.保护工作表(Sheet2)
+  End If
+End Sub
+
+Private Sub cbShes()    '配股清单
+strSheBie = lbSheBie.Value
+If strSheBie = "全部社" Then
+  MsgBox "请选择一个社!"
+Else
+  'Call lydone.取消保护(Sheet2)
+  Call lydone.配股情况(strSheBie)
+  'Call lydone.保护工作表(Sheet2)
+End If
+End Sub
+
+Private Sub GuShu()   '计算每户股数
+strSheBie = lbSheBie.Value
+If strSheBie = "全部社" Then
+  MsgBox "请选择一个社!"
+Else
+  Dim obGuShu As Integer
+  obGuShu = -obGuShu1.Value * 1 - obGuShu2.Value * 2 - obGuShu3.Value * 3
+  'Call lydone.取消保护(Sheet2)
+  Call lydone.每户股数(strSheBie, obGuShu)
+  'Call lydone.保护工作表(Sheet2)
+End If
+End Sub
+
+Private Sub OldMen()    '老人名单
+  Dim datYear As Date
+  Dim ckold As Boolean
+  Dim intold As Integer
+  strSheBie = lbSheBie.Value
+  datYear = DTPoldmen.Value
+  ckold = cbold.Value
+  intold = tbold.Value
+  'Call lydone.取消保护(Sheet2)
+  Call lydone.老人名单(strSheBie, datYear, ckold, intold)
+  'Call lydone.保护工作表(Sheet2)
+End Sub
+
+Private Sub SpinWomen_Change()    '妇女岁数
+  womenYear.Caption = SpinWomen.Value
+End Sub
+
+Private Sub Women()   '妇女名单
+  Dim intCols As Integer
+  strSheBie = lbSheBie.Value
+  If cbFiveCols.Value Then
+    intCols = 5
+  Else: intCols = 4
+  End If
+  'Call lydone.取消保护(Sheet2)
+  Call lydone.妇女名单(strSheBie, SpinWomen.Value, intCols)
+  'Call lydone.保护工作表(Sheet2)
+End Sub
+
+Private Sub Sheet3Activate()
+  Sheet3.Activate
+End Sub
+
