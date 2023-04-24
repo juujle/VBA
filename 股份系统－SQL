@@ -1,0 +1,771 @@
+Option Explicit
+Dim conn As New ADODB.Connection
+Dim rs As New ADODB.Recordset
+Dim strSQL$
+Dim errStatus As Boolean
+
+ Sub 老人名单(strSheBie$, datYear As Date, ckold As Boolean, intold As Integer)
+ 
+ Dim date3 As Date
+ Dim intNO%, i%, intCols%, intRows%, intToYear%
+  Dim intAge60%, intAge70%, intAge80%, intAge90%, 金额, 总金额
+  Dim arr() As Variant
+  On Error GoTo ErrorHandler
+  
+  intToYear = Year(datYear)
+  strSQL = "'" & intToYear - 60 & "/" & Month(datYear) & "/" & Day(datYear) & "'"
+  strSQL = "Select 姓名, 出生日期 From [总表] " & _
+            "Where 配股类别 < 3 And 死亡 = 0 And " & _
+            "出生日期 <= " & strSQL & " And " & _
+            "社别 = '" & strSheBie & "' Order By 户号"      'SQL
+  
+  Call OpenConn
+  If errStatus Then Exit Sub
+  rs.Open strSQL, conn, 0, 1
+  
+  intNO = 0:  intRows = 0: 总金额 = 0
+  ReDim arr(1 To 10, -1 To intRows)
+  Do While Not rs.EOF
+    intCols = (intNO Mod 2) * 5 + 1
+    If intCols = 1 Then
+        intRows = intRows + 1
+        ReDim Preserve arr(1 To 10, -1 To intRows)
+    End If
+    intNO = intNO + 1
+    arr(intCols, intRows) = intNO
+    arr(intCols + 1, intRows) = rs("姓名")
+    arr(intCols + 2, intRows) = Year(datYear) - Year(rs("出生日期")) - 1
+    date3 = DateSerial(Year(datYear), Month(rs("出生日期")), Day(rs("出生日期")))
+    If date3 <= datYear Then arr(intCols + 2, intRows) = arr(intCols + 2, intRows) + 1
+        
+    If Not ckold Then
+        金额 = intold
+    Else
+        Select Case arr(intCols + 2, intRows)
+             Case 60 To 69: 金额 = 300
+             Case 70 To 79: 金额 = 400
+             Case 80 To 89: 金额 = 500
+             Case Else: 金额 = 800
+        End Select
+    End If
+    arr(intCols + 3, intRows) = 金额
+    总金额 = 总金额 + 金额
+    Select Case arr(intCols + 2, intRows)
+          Case 60 To 69: intAge60 = intAge60 + 1
+          Case 70 To 79: intAge70 = intAge70 + 1
+          Case 80 To 89: intAge80 = intAge80 + 1
+          Case Else: intAge90 = intAge90 + 1
+     End Select
+     rs.MoveNext
+  Loop
+    
+  Application.ScreenUpdating = False
+  
+  If Month(datYear) < 3 Then
+    strSQL = "春节"
+  Else
+    strSQL = "中秋节"
+  End If
+  arr(1, -1) = intToYear & "年" & strSQL & strSheBie & "社老人慰问金签收表"
+  For i = 1 To 2
+    arr(i * 5 - 4, 0) = "编号"
+    arr(i * 5 - 3, 0) = "姓名"
+    arr(i * 5 - 2, 0) = "年龄"
+    arr(i * 5 - 1, 0) = "金额"
+    arr(i * 5, 0) = "签名"
+  Next
+  With Sheet2
+    .Cells.Clear
+    .Range("A1:J" & intRows + 2) = Application.Transpose(arr) '赋值到单元格
+    .Cells(intRows + 3, 1).Value = "60-69岁：" & intAge60 & "人；70-79岁：" _
+          & intAge70 & "人；80-89岁：" & intAge80 & "人；90岁以上：" & intAge90 & "人。总金额：" & 总金额
+     .Range("A2, F2").ColumnWidth = 3.5
+    .Range("B2, G2").ColumnWidth = 8
+    .Range("C2, H2").ColumnWidth = 4.5
+    .Range("D2, I2").ColumnWidth = 6
+    .Range("E2, J2").ColumnWidth = 13
+    If Not Application.ActivePrinter Like "无法识别*" Then
+      .PageSetup.LeftMargin = 72  '设置页边距为2.5
+      If strSheBie = "上三" Or strSheBie = "小坑" Then
+        .PageSetup.TopMargin = 51
+      Else
+        .PageSetup.TopMargin = 65
+      End If
+    End If
+    .Activate
+  End With
+  With Sheet2.Range("A1:J1")
+    .Font.Size = 16
+    .Font.Bold = True
+    If strSheBie = "上三" Or strSheBie = "小坑" Then
+        .RowHeight = 20
+    Else
+        .RowHeight = 30
+    End If
+    .HorizontalAlignment = xlCenterAcrossSelection
+    .VerticalAlignment = xlTop
+  End With
+  With Sheet2.Range("A2:J" & intRows + 2)
+    If strSheBie = "上三" Or strSheBie = "小坑" Then
+        .RowHeight = 17
+    ElseIf strSheBie = "上二" Then
+        .RowHeight = 19
+    Else
+        .RowHeight = 21
+    End If
+    .Font.Size = 12
+    .HorizontalAlignment = xlCenter
+    .VerticalAlignment = xlCenter
+    .Borders.LineStyle = xlContinuous
+  End With
+  Application.ScreenUpdating = True
+  Application.GoTo Reference:="R3C1"
+  rs.Close
+  Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 妇女名单(strSheBie$, intYear%, intCols%)
+  Dim intNO%, b%, intTC%, intRows%
+  Dim arr() As Variant
+  On Error GoTo ErrorHandler
+  
+  strSQL = "'" & Year(VBA.Date) - intYear + 1 & "/1/1'"
+  strSQL = "Select 姓名 From [总表] " & _
+            "Where 死亡 = 0 And 性别='女' And " & _
+            "出生日期 < " & strSQL & " And " & _
+            "社别 = '" & strSheBie & "' And 干部=0 Order By 户号"   'SQL
+  Call OpenConn
+  If errStatus Then Exit Sub
+  rs.Open strSQL, conn, 0, 1
+  
+  intRows = 0: intNO = 0: intTC = intCols * 3
+  ReDim arr(1 To intTC, -1 To intRows)
+  Do While Not rs.EOF  '循环开始
+    'If InStr(rs("备注") & " ", "无妇女节慰问金") = 0 Then
+        b = (intNO Mod intCols) * 3 + 1
+        If b = 1 Then
+          intRows = intRows + 1
+          ReDim Preserve arr(1 To intTC, -1 To intRows)
+        End If
+        intNO = intNO + 1
+        arr(b, intRows) = intNO
+        arr(b + 1, intRows) = rs("姓名")
+    'End If
+    rs.MoveNext
+  Loop
+  arr(1, -1) = Year(Now) & "年" & strSheBie & "社妇女节慰问金签收表(100元/人)"
+  Application.ScreenUpdating = False
+  With Sheet2
+    .Cells.Clear
+    For b = 1 To intCols
+      arr(b * 3 - 2, 0) = "编号"
+      arr(b * 3 - 1, 0) = "姓名"
+      arr(b * 3, 0) = "签名"
+      .Columns(b * 3 - 2).ColumnWidth = 3.5   '设置列宽
+      .Columns(b * 3 - 1).ColumnWidth = 9.5 - intCols / 2
+      .Columns(b * 3 - 0).ColumnWidth = 25.5 - intCols * 4
+    Next
+    .Cells(1, 1).Resize(intRows + 2, intTC) = Application.Transpose(arr)
+    If Not Application.ActivePrinter Like "无法识别*" Then
+      .PageSetup.LeftMargin = 40    '设置左页边距为1.4
+      .PageSetup.TopMargin = 76 '34
+    End If
+    .Activate
+  End With
+  
+  With Sheet2.Cells(1, 1).Resize(1, intTC)
+    .Font.Size = 16
+    .Font.Bold = True
+    .RowHeight = 34 '26
+    .HorizontalAlignment = xlCenterAcrossSelection
+    .VerticalAlignment = xlTop
+  End With
+  With Sheet2.Cells(2, 1).Resize(intRows + 3, intTC)
+    .RowHeight = 27 '18.5
+    .Font.Size = 12
+    .HorizontalAlignment = xlCenter
+    .VerticalAlignment = xlCenter
+    .Borders.LineStyle = xlContinuous
+  End With
+  Application.ScreenUpdating = True
+  Application.GoTo Reference:="R3C1"
+  rs.Close
+  Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 配股情况(strSheBie$)
+Dim arrTitle(), arr As Variant
+Dim intRow%, i%, intNO%
+On Error GoTo ErrorHandler
+arrTitle = Array("户号", "姓名", "性别", "出生日期", "身份证", "股数", "配股类别", _
+              "户主姓名", "社别", "电话", "死亡", "不分配", "备注", "住址", "ID", "干部")
+strSQL = "Select 户号 as aa, 姓名, 性别, 出生日期, 身份证, 股数, 配股类别, 户主姓名, " & _
+      "社别,电话, case 死亡 when 1 then '死亡' else '' end, 不分配, 备注,住址, ID, 干部, 户号 " & _
+      "From [总表] " & _
+      "Where 社别 = '" & strSheBie & "' Order By  户号,户主 desc, ID"            'SQL
+Call OpenConn
+If errStatus Then Exit Sub
+Application.ScreenUpdating = False
+With Sheet2
+  .Cells.Clear
+  .Activate
+  .Columns(1).ColumnWidth = 4     '户号
+  .Columns(2).ColumnWidth = 7     '姓名
+  .Columns(3).ColumnWidth = 5     '性别
+  .Columns(4).ColumnWidth = 10    '出生日期
+  .Columns(5).ColumnWidth = 18    '身份证
+  .Columns(6).ColumnWidth = 4     '股数
+  .Columns(7).ColumnWidth = 0     '配股类别
+  .Columns(8).ColumnWidth = 7     '户主姓名
+  .Columns(9).ColumnWidth = 0     '社别
+  .Columns(10).ColumnWidth = 8    '电话
+  .Columns(11).ColumnWidth = 4    '死亡
+  .Columns(12).ColumnWidth = 5    '不分配
+  .Columns(13).ColumnWidth = 6    '备注
+  .Columns(14).ColumnWidth = 10   '住址
+  .Range("D1") = strSheBie & "社配股情况列表"
+  .Range("A2:P2") = arrTitle
+  .Range("A3").CopyFromRecordset conn.Execute(strSQL)
+  intRow = .Range("A65536").End(xlUp).Row
+  .Cells(intRow + 1, 5) = "股数合计: " & WorksheetFunction.Sum(Range("F3:F" & intRow))
+  arr = .Cells(2, 1).Resize(intRow - 1, 1)
+  For i = 1 To intRow - 2
+    If arr(i, 1) = arr(i + 1, 1) Then
+      arr(i, 1) = ""
+    Else
+      intNO = intNO + 1
+      arr(i, 1) = intNO
+    End If
+  Next
+  .Cells(3, 1).Resize(intRow - 2, 1) = arr
+End With
+Application.ScreenUpdating = True
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 查找社员(strSheBie$, strName$)
+  Dim arrTitle() As Variant
+  On Error GoTo ErrorHandler
+arrTitle = Array("户号", "姓名", "性别", "出生日期", "身份证", "股数", "配股类别", _
+              "户主姓名", "社别", "电话", "死亡", "不分配", "备注", "住址", "ID", "干部")
+strSQL = "Select 户号, 姓名, 性别, 出生日期, 身份证, 股数, 配股类别, 户主姓名, " & _
+      "社别, 电话, case 死亡 when 1 then '死亡' else '' end, 不分配, 备注,住址, ID, 干部, 户号 " & _
+      "From [总表] " & _
+      "Where 姓名 Like '%" & strName & "%'"             'SQL
+  If strSheBie <> "全部社" Then
+    strSQL = strSQL & " And 社别 = '" & strSheBie & "'"
+  End If
+  strSQL = strSQL & " Order By 社别"
+Call OpenConn
+If errStatus Then Exit Sub
+Application.ScreenUpdating = False
+With Sheet2
+  .Cells.Clear
+  .Activate
+  .Columns(1).ColumnWidth = 4     '户号
+  .Columns(2).ColumnWidth = 7     '姓名
+  .Columns(3).ColumnWidth = 5     '性别
+  .Columns(4).ColumnWidth = 10    '出生日期
+  .Columns(5).ColumnWidth = 18    '身份证
+  .Columns(6).ColumnWidth = 4     '股数
+  .Columns(7).ColumnWidth = 0     '配股类别
+  .Columns(8).ColumnWidth = 7     '户主姓名
+  .Columns(9).ColumnWidth = 4     '社别
+  .Columns(10).ColumnWidth = 8    '电话
+  .Columns(11).ColumnWidth = 4    '死亡
+  .Columns(12).ColumnWidth = 5    '不分配
+  .Columns(13).ColumnWidth = 6    '备注
+  .Columns(14).ColumnWidth = 10   '住址
+  .Range("A2:P2") = arrTitle
+  .Range("A3").CopyFromRecordset conn.Execute(strSQL)
+End With
+Application.ScreenUpdating = True
+Application.GoTo Reference:="R3C1"
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 高级查找(strSheBie$, strFind$)
+  Dim arrTitle() As Variant
+  On Error GoTo ErrorHandler
+arrTitle = Array("户号", "姓名", "性别", "出生日期", "身份证", "股数", "配股类别", _
+              "户主姓名", "社别", "电话", "死亡", "不分配", "备注", "住址", "ID", "干部")
+strSQL = "Select 户号 as aa, 姓名, 性别, 出生日期, 身份证, 股数, 配股类别, 户主姓名, " & _
+      "社别, 电话, case 死亡 when 1 then '死亡' else '' end, 不分配, 备注,住址, ID, 干部, 户号 " & _
+      "From [总表] " & _
+      "Where (" & strFind & ")"     'SQL
+  If strSheBie <> "全部社" Then
+    strSQL = strSQL & " And 社别 = '" & strSheBie & "'"
+  End If
+  strSQL = strSQL & " Order By 社别, 户号, 户主"
+Call OpenConn
+If errStatus Then Exit Sub
+Application.ScreenUpdating = False
+With Sheet2
+  .Cells.Clear
+  .Range("A3").CopyFromRecordset conn.Execute(strSQL)
+  .Columns(1).ColumnWidth = 4     '户号
+  .Columns(2).ColumnWidth = 7     '姓名
+  .Columns(3).ColumnWidth = 5     '性别
+  .Columns(4).ColumnWidth = 10    '出生日期
+  .Columns(5).ColumnWidth = 18    '身份证
+  .Columns(6).ColumnWidth = 4     '股数
+  .Columns(7).ColumnWidth = 0     '配股类别
+  .Columns(8).ColumnWidth = 7     '户主姓名
+  .Columns(9).ColumnWidth = 4     '社别
+  .Columns(10).ColumnWidth = 8    '电话
+  .Columns(11).ColumnWidth = 4    '死亡
+  .Columns(12).ColumnWidth = 5    '不分配
+  .Columns(13).ColumnWidth = 6    '备注
+  .Columns(14).ColumnWidth = 10   '住址
+  .Range("A2:P2") = arrTitle
+  .Activate
+End With
+Application.ScreenUpdating = True
+Application.GoTo Reference:="R3C1"
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 误工费名单(strSheBie$, str标题$, 行数%)
+ 
+  Dim intNO%, i%, intCols%, 换行%, 总行数
+  Dim 金额
+  Dim arr() As Variant
+  'On Error GoTo ErrorHandler
+  
+  strSQL = "Select 户主姓名,姓名,干部 From [总表] " & _
+            "Where 配股类别 < 3 And 死亡 = 0 And " & _
+            "社别 = '" & strSheBie & "' Order By 户号"      'SQL
+  
+  Call OpenConn
+  If errStatus Then Exit Sub
+  rs.Open strSQL, conn, 0, 1
+  
+  intNO = 0:   金额 = 100:  换行 = 0
+  
+  ReDim arr(1 To 10, -1 To 0)
+  Do While Not rs.EOF
+    intCols = ((intNO \ 行数) Mod 2) * 5 + 1
+    If intCols = 1 Then
+        总行数 = intNO + 1 - 换行 * 行数
+        ReDim Preserve arr(1 To 10, -1 To 总行数)
+    End If
+    
+    intNO = intNO + 1
+    arr(intCols, intNO - 换行 * 行数) = intNO
+    arr(intCols + 1, intNO - 换行 * 行数) = rs("户主姓名")
+    arr(intCols + 2, intNO - 换行 * 行数) = rs("姓名")
+    If rs("干部") = True Then
+        arr(intCols + 3, intNO - 换行 * 行数) = "-"
+    Else
+        arr(intCols + 3, intNO - 换行 * 行数) = 金额
+    End If
+    
+    If intCols = 1 And ((intNO Mod 行数) = 0) Then 换行 = 换行 + 1
+    rs.MoveNext
+  Loop
+    
+  arr(1, -1) = strSheBie & str标题 & "会议误工费签收表"
+  For i = 1 To 2
+    arr(i * 5 - 4, 0) = "编号"
+    arr(i * 5 - 3, 0) = "户主姓名"
+    arr(i * 5 - 2, 0) = "姓名"
+    arr(i * 5 - 1, 0) = "金额"
+    arr(i * 5, 0) = "签名"
+  Next
+  
+  Application.ScreenUpdating = False
+  With Sheet2
+    .Cells.Clear
+    .Range("A1:J" & 总行数 + 2) = Application.Transpose(arr)  '赋值到单元格
+    .Cells(1, 9).Value = "(写全名，不能代签)"
+     .Range("A2, F2").ColumnWidth = 3.5
+    .Range("B2, G2").ColumnWidth = 7
+    .Range("C2, H2").ColumnWidth = 7
+    .Range("D2, I2").ColumnWidth = 6
+    .Range("E2, J2").ColumnWidth = 13
+    If Not Application.ActivePrinter Like "无法识别*" Then
+        .PageSetup.LeftMargin = 72  '设置页边距为2.5
+        .PageSetup.TopMargin = 75
+    End If
+    .Activate
+  End With
+  With Sheet2.Range("A1:J1")
+    .Font.Size = 16
+    .Font.Bold = True
+    .RowHeight = 30
+    .HorizontalAlignment = xlCenterAcrossSelection
+    .VerticalAlignment = xlTop
+  End With
+  Sheet2.Range("I1:J1").Font.Size = 12
+  With Sheet2.Range("A2:J" & 总行数 + 2)
+    .RowHeight = Round(650 / 行数, 1)
+    .Font.Size = 12
+    .HorizontalAlignment = xlCenter
+    .VerticalAlignment = xlCenter
+    .Borders.LineStyle = xlContinuous
+  End With
+  Application.ScreenUpdating = True
+  Application.GoTo Reference:="R3C1"
+  rs.Close
+  Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 修改()
+  Dim arr As Variant
+  On Error GoTo ErrorHandler
+  arr = Sheet3.Range("A3:P3")
+  If Len(arr(1, 2)) = 0 Or Len(arr(1, 8)) = 0 Then
+    MsgBox "请输入相关数据!"
+    Exit Sub
+  End If
+  If Len(arr(1, 7)) = 0 Then
+    MsgBox "请输入相关数据:配股类别"
+    Exit Sub
+  End If
+  If Len(arr(1, 11)) = 0 Then
+    MsgBox "请输入相关数据:死亡"
+    Exit Sub
+  End If
+  If Len(arr(1, 12)) = 0 Then
+    MsgBox "请输入相关数据:不分配"
+    Exit Sub
+  End If
+  If Len(arr(1, 16)) = 0 Then
+    MsgBox "请输入相关数据:干部"
+    Exit Sub
+  End If
+  '---------------SQL
+  If arr(1, 11) Then
+    arr(1, 11) = 1
+  Else
+    arr(1, 11) = 0
+  End If
+  If arr(1, 16) Then
+    arr(1, 16) = 1
+  Else
+    arr(1, 16) = 0
+  End If
+  '----------------
+  
+  strSQL = ""
+  If IsDate(arr(1, 4)) Then strSQL = ", 出生日期='" & arr(1, 4) & "'"
+  strSQL = "Update [总表] Set 姓名='" & arr(1, 2) & _
+          "', 性别='" & arr(1, 3) & _
+          "', 身份证='" & arr(1, 5) & _
+          "', 股数=" & arr(1, 6) & _
+          ",  配股类别=" & arr(1, 7) & _
+          ",  电话='" & arr(1, 10) & _
+          "', 死亡=" & arr(1, 11) & _
+          ",  不分配=" & arr(1, 12) & strSQL & _
+          ",  备注='" & arr(1, 13) & _
+          "', 住址='" & arr(1, 14) & _
+          "', 干部=" & arr(1, 16) & _
+          " Where ID=" & arr(1, 15) & _
+          " and 社别='" & arr(1, 9) & "'"
+          
+  Call OpenConn
+  If errStatus Then Exit Sub
+  conn.Execute (strSQL)
+  strSQL = "Select Count(ID) From [总表] Where ID=" & arr(1, 15) & _
+        " And 户主=1 And (Not 户主姓名='" & arr(1, 2) & "') And 社别='" & arr(1, 9) & "'"
+  If conn.Execute(strSQL)(0) = 1 Then   '所改的人是户主,要改全户的户主姓名
+    strSQL = "Update [总表] Set 户主姓名='" & arr(1, 2) & "' Where 户号=" & arr(1, 15) & " And 社别='" & arr(1, 9) & "'"
+    conn.Execute (strSQL)
+  End If
+  MsgBox "更改成功!"
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 更改户主(HuHao&, strSheBie$)
+  strSQL = "Select ID,姓名,社别,户主姓名,户主姓名 From [总表] " & _
+          "Where 户号=" & HuHao & " And 社别 = '" & strSheBie & "' Order By 户主 desc"
+  Call OpenConn
+  If errStatus Then Exit Sub
+  With Sheet3
+    .Activate
+    .Range("A11:E20").ClearContents
+    .Cells(11, 1).CopyFromRecordset conn.Execute(strSQL)
+  End With
+End Sub
+
+Sub 确认更改户主()
+  Dim arr As Variant
+  Dim intHuZhu(), intHuNO, intNO, i, j As Integer
+  On Error GoTo ErrorHandler
+  arr = Range("A11:G20")
+   
+  Do While arr(intNO + 1, 1) > 0
+    intNO = intNO + 1
+    If arr(intNO, 4) <> arr(intNO, 5) Then  '更改了户主
+      arr(intNO, 6) = True
+      If arr(intNO, 2) = arr(intNO, 4) Then '自己为户主
+        intHuNO = intHuNO + 1
+        ReDim Preserve intHuZhu(1 To intHuNO)
+        intHuZhu(intHuNO) = intNO
+      End If
+    End If
+  Loop
+  If intNO = 0 Then
+    MsgBox "没有要修改的社员."
+    Exit Sub
+  End If
+    
+  Call OpenConn
+  If errStatus Then Exit Sub
+  strSQL = "Select ID,姓名,户主 From [总表] Where 社别='" & arr(1, 3) & "'"
+  rs.Open strSQL, conn, adOpenStatic, adLockReadOnly
+  For i = 1 To intHuNO      '验证是否存在同名户主
+    strSQL = "姓名='" & arr(intHuZhu(i), 4) & "'"
+    rs.Find Criteria:=strSQL, SearchDirection:=adSearchForward, Start:=1
+    If rs("户主") = True Then
+      rs.Close
+      MsgBox "错误.户主姓名:" & arr(intHuZhu(i), 4) & "重复!"
+      Exit Sub
+    End If
+  Next
+  For i = 1 To intNO    '验证所设户主是否存在
+    If arr(i, 6) = True Then
+      For j = 1 To intHuNO
+        If arr(i, 4) = arr(intHuZhu(j), 4) Then
+          arr(i, 7) = arr(intHuZhu(j), 1)
+          GoTo skipFind
+        End If
+      Next
+      strSQL = "姓名='" & arr(i, 4) & "'"
+      rs.Find Criteria:=strSQL, SearchDirection:=adSearchForward, Start:=1
+      If rs.EOF Then
+        rs.Close
+        MsgBox "错误.户主不存在:" & arr(i, 4)
+        Exit Sub
+      ElseIf rs("户主") = False Then
+        rs.Close
+        MsgBox "错误.户主不存在:" & arr(i, 4)
+        Exit Sub
+      End If
+      arr(i, 7) = rs("ID")
+skipFind:
+    End If
+  Next
+  rs.Close
+  For i = 1 To intHuNO    '自己为户主
+    strSQL = "Update [总表] Set 户主=1 Where ID=" & arr(intHuZhu(i), 1) & " And 社别='" & arr(1, 3) & "'"
+    conn.Execute (strSQL)
+  Next
+  If arr(1, 2) <> arr(1, 4) Then  '户主变更
+    strSQL = "Update [总表] Set 户号=" & arr(1, 7) & _
+          ", 户主姓名='" & arr(1, 4) & "' Where 户号=" & arr(1, 1) & " And 社别='" & arr(1, 3) & "'"
+    conn.Execute (strSQL)
+    strSQL = "Update [总表] Set 户主=0 Where ID=" & arr(1, 1) & " And 社别='" & arr(1, 3) & "'"
+    conn.Execute (strSQL)
+  End If
+  For i = 2 To intNO  '更改户主
+    If arr(i, 6) = True Then
+      strSQL = "Update [总表] Set 户号=" & arr(i, 7) & _
+              ", 户主姓名='" & arr(i, 4) & "' Where ID=" & arr(i, 1) & " And 社别='" & arr(1, 3) & "'"
+      conn.Execute (strSQL)
+    End If
+  Next
+  Call 取消保护(Sheet3)
+  Range("A11:E20").ClearContents
+  Range("E11") = "更改户主成功."
+  Call 保护工作表(Sheet3)
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+'复制四个数据库
+Sub rebuild()
+  Dim strDBPath As String
+  Dim tmpconn As New ADODB.Connection
+  Call OpenConn
+  'conn.Execute ("Delete From [总表]")
+  conn.Execute ("Delete From [总表] where 社别='小塱' or 社别='枝山' or 社别='岗上' or 社别='岗中' or 社别='岗下' or 社别='大巷' or 社别='苑围' or 社别='新一' or 社别='新二' or 社别='勒竹' or 社别='莲潭' or 社别='赵溪'")    '版本2
+  Call CloseConn
+  
+  strSQL = "Insert Into [" & ThisWorkbook.Path & "\全村股份名册.mdb].[总表] Select * From [总表]"
+  'strDBPath = ThisWorkbook.Path & "\股份名册.mdb"
+  'tmpconn.Open "provider=microsoft.jet.oledb.4.0;data source=" & strDBPath
+  'tmpconn.Execute strSQL
+  'tmpconn.Close
+  
+  strDBPath = ThisWorkbook.Path & "\勒竹片股份名册.mdb"
+  tmpconn.Open "provider=microsoft.jet.oledb.4.0;data source=" & strDBPath
+  tmpconn.Execute strSQL
+  tmpconn.Close
+  
+  strDBPath = ThisWorkbook.Path & "\岗头元股份名册-勇.mdb"
+  tmpconn.Open "provider=microsoft.jet.oledb.4.0;data source=" & strDBPath
+    strSQL = "Insert Into [" & ThisWorkbook.Path & "\全村股份名册.mdb].[总表] Select * From [总表] where 社别='小塱' or 社别='枝山'"        '版本2
+  tmpconn.Execute strSQL
+  tmpconn.Close
+End Sub
+
+Sub 添加()
+  Dim arr As Variant
+  Dim ID
+  On Error GoTo ErrorHandler
+  arr = Range("A7:P7")
+  If Len(arr(1, 2)) = 0 Then
+    MsgBox "请输入相关数据:姓名"
+    Exit Sub
+  End If
+  If Len(arr(1, 7)) = 0 Then
+    MsgBox "请输入相关数据:配股类别"
+    Exit Sub
+  End If
+  If Len(arr(1, 8)) = 0 Then
+    MsgBox "请输入相关数据:户主姓名"
+    Exit Sub
+  End If
+  If Len(arr(1, 9)) = 0 Then
+    MsgBox "请输入相关数据:社别"
+    Exit Sub
+  End If
+  If Len(arr(1, 11)) = 0 Then
+    MsgBox "请输入相关数据:死亡"
+    Exit Sub
+  End If
+  If Len(arr(1, 12)) = 0 Then
+    MsgBox "请输入相关数据:不分配"
+    Exit Sub
+  End If
+    
+    '---------------SQL
+  If arr(1, 11) Then
+    arr(1, 11) = 1
+  Else
+    arr(1, 11) = 0
+  End If
+  If arr(1, 16) Then
+    arr(1, 16) = 1
+  Else
+    arr(1, 16) = 0
+  End If
+  '----------------
+
+   Call OpenConn
+   If errStatus Then Exit Sub
+  strSQL = "Select Count(ID) From [总表] Where 户主=1 And 姓名 = '" & _
+          arr(1, 8) & "' And 社别 = '" & arr(1, 9) & "'"
+  If conn.Execute(strSQL)(0) = 0 Then
+    MsgBox "错误.户主不存在:" & arr(1, 8)
+    Exit Sub
+  End If
+  strSQL = "Select max(ID) From [总表] Where 社别='" & arr(1, 9) & "'"
+  ID = conn.Execute(strSQL)(0) + 1
+            
+  strSQL = "Select ID From [总表] Where 户主=1 And 姓名='" & _
+            arr(1, 8) & "' And 社别='" & arr(1, 9) & "'"
+  arr(1, 1) = conn.Execute(strSQL)(0)
+  
+  strSQL = "Insert Into [总表] (ID,干部,户主,户号,姓名,性别,身份证,股数,配股类别," & _
+          "户主姓名,社别,电话,死亡,不分配,备注,住址"
+  If IsDate(arr(1, 4)) Then strSQL = strSQL & ", 出生日期"
+  strSQL = strSQL & ") Values (" & ID & "," & arr(1, 16) & ",0," & arr(1, 1) & ", '" & _
+          arr(1, 2) & "', '" & arr(1, 3) & "', '" & _
+          arr(1, 5) & "', " & --arr(1, 6) & ", " & _
+          arr(1, 7) & ", '" & arr(1, 8) & "', '" & _
+          arr(1, 9) & "', '" & arr(1, 10) & "', " & _
+          arr(1, 11) & ", " & arr(1, 12) & ", '" & _
+          arr(1, 13) & "', '" & arr(1, 14) & "'"
+  If IsDate(arr(1, 4)) Then strSQL = strSQL & ", '" & arr(1, 4) & "'"
+  strSQL = strSQL & ")"
+  conn.Execute (strSQL)
+  MsgBox "添加成功!"
+Exit Sub
+  
+ErrorHandler:
+  MsgBox "程序运行错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 删除(ID&, strSheBie$, strName$)
+  Call OpenConn
+  If errStatus Then Exit Sub
+  strSQL = "Select count(ID) From [总表] Where 户主=1 And ID=" & ID & " And 社别 = '" & strSheBie & "' And 姓名 = '" & strName & "'"
+  If conn.Execute(strSQL)(0) <> 0 Then
+    MsgBox "错误:不能删除户主."
+    Exit Sub
+  End If
+  strSQL = "Select Count(ID) From [总表] Where 配股类别<3 And ID=" & ID & " And 社别 = '" & strSheBie & "' And 姓名 = '" & strName & "'"
+  If conn.Execute(strSQL)(0) <> 0 Then
+    MsgBox "错误:只能删除非股东人员."
+    Exit Sub
+  End If
+  strSQL = "Delete From [总表] Where ID=" & ID & " And 社别 = '" & strSheBie & "' And 姓名 = '" & strName & "'"
+  conn.Execute (strSQL)
+  MsgBox "删除成功!"
+End Sub
+
+'关闭数据库连接
+Sub CloseConn()
+  If Not rs Is Nothing Then Set rs = Nothing
+  If conn.State <> 0 Then conn.Close
+  If Not conn Is Nothing Then Set conn = Nothing
+End Sub
+
+'打开数据库连接
+Sub OpenConn()
+On Error GoTo ErrorHandler
+On Error Resume Next
+errStatus = False
+
+  Dim objWSShell, IP, strEcho, oExec, cmdping
+  Set objWSShell = CreateObject("Wscript.shell")
+  IP = Sheet1.tbIP.Value
+  'IP = "172.23.52.52"
+  'IP = "127.0.0.1"
+  cmdping = "ping " & IP & " -n 1"
+  Set oExec = objWSShell.exec(cmdping)
+  Do Until oExec.stdout.AtEndOfStream
+      strEcho = strEcho & oExec.stdout.readline() & VBA.Chr(13)
+  Loop
+  Debug.Print strEcho
+  If InStr(strEcho, "Lost = 0 (0% loss)") Or InStr(strEcho, "丢失 = 0 (0% 丢失)") > 0 Then
+    If conn.State = 0 Then
+      conn.ConnectionString = "Provider=SQLOLEDB;Server=" & IP & ";Database=gufen;Uid=sa;Pwd=112358"
+      conn.Open
+    End If
+  Else
+    errStatus = True
+    MsgBox "数据库连接错误，请检查或找技术员帮助。"
+    Exit Sub
+  End If
+  
+Exit Sub
+ErrorHandler:
+  MsgBox "数据库连接错误，请检查或找技术员帮助。"
+End Sub
+
+Sub 取消保护(sh As Worksheet)
+If sh.ProtectContents Then sh.Unprotect Password:="ly"
+End Sub
+
+Sub 保护工作表(sh As Worksheet)
+sh.Protect Password:="ly"
+End Sub
+
+
+
